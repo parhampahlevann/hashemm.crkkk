@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# توقف اسکریپت در صورت بروز هرگونه خطا
 set -e
 
 URL="https://github.com/parhampahlevann/hashemm.crkkk/releases/download/v3.0.0/Hashem-v3.0.0-Pro-Local-amd64.zip"
 ZIP_FILE="Hashem-v3.0.0-Pro-Local-amd64.zip"
 EXTRACT_DIR="Hashem-v3.0.0-Pro-Local-amd64"
-WORK_DIR="/tmp/hashem_installer_$$"
+# استفاده از مسیر داخل /root برای جلوگیری از خطای noexec در پارتیشن /tmp برخی سرورها
+WORK_DIR="/root/.hashem_installer_$$"
 
 # ۱. بررسی دسترسی روت
 if [ "$EUID" -ne 0 ]; then
@@ -14,7 +14,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# ۲. بررسی و نصب پیش‌نیازها (unzip و curl)
+# ۲. بررسی و نصب پیش‌نیازها
 echo "[*] Checking dependencies..."
 for pkg in curl unzip; do
     if ! command -v "$pkg" &> /dev/null; then
@@ -23,7 +23,7 @@ for pkg in curl unzip; do
     fi
 done
 
-# ۳. ساخت پوشه موقت برای دانلود و استخراج تمیز
+# ۳. ساخت پوشه کاری
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 
@@ -35,23 +35,26 @@ curl -L --fail --progress-bar -o "$ZIP_FILE" "$URL"
 echo "[*] Extracting archive..."
 unzip -q -o "$ZIP_FILE"
 
-# ۶. ورود به پوشه و اجرای نصب‌کننده اصلی
+# ۶. ورود به پوشه استخراج شده
 if [ -d "$EXTRACT_DIR" ]; then
     cd "$EXTRACT_DIR"
 elif [ -f "install.sh" ]; then
-    # در صورتی که فایل‌ها بدون پوشه والد مستقیماً استخراج شده باشند
-    echo "[*] Found install.sh in current directory..."
+    echo "[*] Found files in current directory..."
 else
-    echo "[-] Error: Directory $EXTRACT_DIR or install.sh not found after extraction."
+    echo "[-] Error: install.sh not found after extraction."
     rm -rf "$WORK_DIR"
     exit 1
 fi
 
+# ۷. اعطای دسترسی اجرایی به تمام باینری‌ها و اسکریپت‌ها (رفع خطای Permission denied)
+echo "[*] Fixing permissions for binaries and scripts..."
+chmod -R +x .
+
+# ۸. اجرای نصب‌کننده اصلی
 echo "[*] Running installer..."
-chmod +x install.sh
 bash install.sh
 
-# ۷. پاکسازی فایل‌های موقت دانلود شده
+# ۹. پاکسازی فایل‌های موقت
 echo "[*] Cleaning up temporary files..."
 rm -rf "$WORK_DIR"
 
